@@ -152,6 +152,7 @@ end
 
 Ice.keymap = {
     -- See `:h quote_`
+    -- 格式: 描述 = { { mode }, key, command, { opts } }
     black_hole_register = { { "n", "v" }, "\\", '"_' },
     clear_cmd_line = { { "n", "i", "v", "t" }, "<C-g>", "<Cmd>mode<CR>" },
     cmd_forward = { "c", "<C-f>", "<Right>", { silent = false } },
