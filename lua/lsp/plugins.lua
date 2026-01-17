@@ -85,6 +85,8 @@ Ice.plugins.mason = {
 
         local installed_packages = registry.get_installed_package_names()
 
+        install "codelldb"
+
         for lsp, config in pairs(Ice.lsp) do
             if not config.enabled then
                 goto continue

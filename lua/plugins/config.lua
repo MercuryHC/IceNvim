@@ -602,6 +602,335 @@ config["nvim-tree"] = {
     },
 }
 
+config["nvim-dap"] = {
+    "mfussenegger/nvim-dap",
+    dependencies = {
+        "rcarriga/nvim-dap-ui",
+        "nvim-neotest/nvim-nio",
+        "theHamsta/nvim-dap-virtual-text",
+        "nvim-tree/nvim-web-devicons",
+        "leoluz/nvim-dap-go",
+    },
+    event = "User IceLoad",
+    opts = {
+        setup_commands = function()
+            local dap = require "dap"
+            local codelldb_path = vim.fn.stdpath "data" .. "/mason/packages/codelldb/extension/adapter/codelldb"
+
+            if vim.fn.filereadable(codelldb_path) == 1 then
+                dap.adapters.codelldb = {
+                    type = "server",
+                    port = "${port}",
+                    executable = {
+                        command = codelldb_path,
+                        args = { "--port", "${port}" },
+                    },
+                }
+            end
+
+            dap.configurations.cpp = {
+                {
+                    name = "Launch and stop at main",
+                    type = "codelldb",
+                    request = "launch",
+                    program = function()
+                        local cwd = vim.fn.getcwd()
+                        if vim.fn.filereadable(cwd .. "/build/" .. vim.fn.fnamemodify(cwd, ":t")) == 1 then
+                            return cwd .. "/build/" .. vim.fn.fnamemodify(cwd, ":t")
+                        elseif vim.fn.filereadable(cwd .. "/build/Debug/" .. vim.fn.fnamemodify(cwd, ":t")) == 1 then
+                            return cwd .. "/build/Debug/" .. vim.fn.fnamemodify(cwd, ":t")
+                        else
+                            return vim.fn.input("Path to executable: ", cwd .. "/", "file")
+                        end
+                    end,
+                    cwd = "${workspaceFolder}",
+                    args = {},
+                    stopOnEntry = false,
+                    initCommands = {
+                        "settings set target.inline-breakpoint-strategy always",
+                        "settings set frame-format 'frame #${frame.index}: ${frame.pc} ${module.file.basename}`${line}'",
+                        "settings set stop-disassembly-display never",
+                        "breakpoint set --name main",
+                    },
+                },
+                {
+                    name = "Launch and run",
+                    type = "codelldb",
+                    request = "launch",
+                    program = function()
+                        return vim.fn.input("Path to executable: ", vim.fn.getcwd() .. "/", "file")
+                    end,
+                    cwd = "${workspaceFolder}",
+                    args = {},
+                    stopOnEntry = false,
+                },
+                {
+                    name = "Attach to process",
+                    type = "codelldb",
+                    request = "attach",
+                    pid = function()
+                        local pid = vim.fn.input("PID: ", "", "number")
+                        if not pid or #pid == 0 then
+                            return nil
+                        end
+                        return tonumber(pid)
+                    end,
+                    program = function()
+                        return vim.fn.input("Path to executable: ", vim.fn.getcwd() .. "/", "file")
+                    end,
+                    cwd = "${workspaceFolder}",
+                },
+            }
+
+            dap.configurations.c = dap.configurations.cpp
+        end,
+    },
+    config = function(_, opts)
+        local dap = require "dap"
+        local dapui = require "dapui"
+        local dap_virtual_text = require "nvim-dap-virtual-text"
+
+        vim.fn.sign_define("DapBreakpoint", { text = "", texthl = "DapBreakpoint", linehl = "", numhl = "DapBreakpoint" })
+        vim.fn.sign_define("DapBreakpointCondition", { text = "", texthl = "DapBreakpointCondition", linehl = "", numhl = "DapBreakpointCondition" })
+        vim.fn.sign_define("DapBreakpointRejected", { text = "", texthl = "DapBreakpointRejected", linehl = "", numhl = "" })
+        vim.fn.sign_define("DapLogPoint", { text = "", texthl = "DapLogPoint", linehl = "", numhl = "" })
+        vim.fn.sign_define("DapStopped", { text = "", texthl = "DapStopped", linehl = "DapStoppedLine", numhl = "DapStopped" })
+
+        vim.api.nvim_set_hl(0, "DapBreakpoint", { fg = "#f38ba8" })
+        vim.api.nvim_set_hl(0, "DapBreakpointCondition", { fg = "#fab387" })
+        vim.api.nvim_set_hl(0, "DapBreakpointRejected", { fg = "#585b70" })
+        vim.api.nvim_set_hl(0, "DapLogPoint", { fg = "#89b4fa" })
+        vim.api.nvim_set_hl(0, "DapStopped", { fg = "#a6e3a1" })
+        vim.api.nvim_set_hl(0, "DapStoppedLine", { bg = "#313244" })
+
+        dapui.setup {
+            controls = {
+                element = "repl",
+                enabled = true,
+                icons = {
+                    pause = "",
+                    play = "",
+                    step_into = "",
+                    step_over = "",
+                    step_out = "",
+                    step_back = "",
+                    run_last = "",
+                    terminate = "",
+                    disconnect = "",
+                },
+            },
+            floating = {
+                border = "rounded",
+                mappings = {
+                    close = { "q", "<Esc>" },
+                    expand = { "<CR>", "<2-LeftMouse>" },
+                    open = "o",
+                    remove = "d",
+                    edit = "e",
+                    repl = "r",
+                },
+            },
+            icons = {
+                expanded = "",
+                collapsed = "",
+                current_frame = "",
+            },
+            layouts = {
+                {
+                    elements = {
+                        { id = "scopes", size = 0.25 },
+                        { id = "breakpoints", size = 0.25 },
+                        { id = "stacks", size = 0.25 },
+                        { id = "watches", size = 0.25 },
+                    },
+                    size = 40,
+                    position = "left",
+                },
+                {
+                    elements = {
+                        { id = "repl", size = 0.5 },
+                        { id = "console", size = 0.5 },
+                    },
+                    size = 12,
+                    position = "bottom",
+                },
+            },
+            render = {
+                indent = 1,
+                max_value_lines = 100,
+                max_type_length = 50,
+            },
+        }
+
+        dap_virtual_text.setup {
+            enabled = true,
+            enabled_commands = true,
+            highlight_changed_variables = true,
+            highlight_new_as_changed = true,
+            show_stop_reason = true,
+            commented = false,
+            only_first_definition = true,
+            all_references = false,
+            clear_on_continue = false,
+        }
+
+        opts.setup_commands()
+
+        vim.opt.mouse = "a"
+        vim.opt.mousemodel = "extend"
+        vim.opt.termguicolors = true
+
+        vim.api.nvim_create_autocmd("FileType", {
+            pattern = "dap-repl",
+            callback = function()
+                vim.wo.relativenumber = true
+                vim.wo.signcolumn = "no"
+                vim.wo.number = false
+                vim.keymap.set("n", "q", "<Cmd>close<CR>", { buffer = true, silent = true })
+            end,
+        })
+
+        local function setup_dap_keymaps(buf)
+            buf = buf or 0
+            local ft = vim.bo[buf].filetype
+            if ft == "c" or ft == "cpp" then
+                pcall(function()
+                    vim.keymap.del("n", "<F5>", { buffer = buf })
+                    vim.keymap.del("n", "<F9>", { buffer = buf })
+                    vim.keymap.del("n", "<F10>", { buffer = buf })
+                    vim.keymap.del("n", "<F11>", { buffer = buf })
+                    vim.keymap.del("n", "<F12>", { buffer = buf })
+                end)
+
+                vim.keymap.set("n", "<F5>", function()
+                    dap.continue()
+                end, { buffer = buf, desc = "Debug Continue" })
+                vim.keymap.set("n", "<F9>", function()
+                    dap.toggle_breakpoint()
+                end, { buffer = buf, desc = "Toggle Breakpoint" })
+                vim.keymap.set("n", "<F10>", function()
+                    dap.step_over()
+                end, { buffer = buf, desc = "Step Over" })
+                vim.keymap.set("n", "<F11>", function()
+                    dap.step_into()
+                end, { buffer = buf, desc = "Step Into" })
+                vim.keymap.set("n", "<F12>", function()
+                    dap.step_out()
+                end, { buffer = buf, desc = "Step Out" })
+                vim.keymap.set("n", "<S-F9>", function()
+                    dap.set_breakpoint(vim.fn.input "Breakpoint condition: ")
+                end, { buffer = buf, desc = "Conditional Breakpoint" })
+            end
+        end
+
+        vim.schedule(function()
+            for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+                local ft = vim.bo[buf].filetype
+                if ft == "c" or ft == "cpp" then
+                    setup_dap_keymaps(buf)
+                end
+            end
+        end)
+
+        vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
+            callback = function()
+                local buf = vim.api.nvim_get_current_buf()
+                local ft = vim.bo[buf].filetype
+                if ft == "c" or ft == "cpp" then
+                    setup_dap_keymaps(buf)
+                    vim.opt.mouse = "a"
+                end
+            end,
+        })
+
+        vim.api.nvim_create_autocmd("User", {
+            pattern = "DapAttach",
+            callback = function()
+                local buf = vim.api.nvim_get_current_buf()
+                setup_dap_keymaps(buf)
+            end,
+        })
+
+        vim.keymap.set("n", "<Leader>db", function()
+            dap.toggle_breakpoint()
+        end, { desc = "Toggle Breakpoint" })
+        vim.keymap.set("n", "<Leader>dB", function()
+            dap.set_breakpoint(vim.fn.input "Breakpoint condition: ")
+        end, { desc = "Conditional Breakpoint" })
+
+        vim.keymap.set("n", "<Leader>dc", function()
+            dap.continue()
+        end, { desc = "Debug Continue" })
+        vim.keymap.set("n", "<Leader>do", function()
+            dap.step_over()
+        end, { desc = "Step Over" })
+        vim.keymap.set("n", "<Leader>di", function()
+            dap.step_into()
+        end, { desc = "Step Into" })
+        vim.keymap.set("n", "<Leader>dO", function()
+            dap.step_out()
+        end, { desc = "Step Out" })
+        vim.keymap.set("n", "<Leader>dr", function()
+            dap.repl.toggle()
+        end, { desc = "Toggle REPL" })
+        vim.keymap.set("n", "<Leader>du", function()
+            dapui.toggle()
+        end, { desc = "Toggle DAP UI" })
+        vim.keymap.set("n", "<Leader>de", function()
+            dap.terminate()
+        end, { desc = "Terminate Debug" })
+
+        dap.defaults.fallback.external_terminal = {
+            command = "/usr/bin/konsole",
+            args = { "-e" },
+        }
+
+        dap.listeners.after.event_initialized["dapui_config"] = function()
+            dapui.open()
+        end
+
+        dap.listeners.after.event_terminated["dapui_config"] = function()
+            dapui.close()
+        end
+
+        dap.listeners.after.event_exited["dapui_config"] = function()
+            dapui.close()
+        end
+    end,
+    keys = {
+        { "<leader>dc", function()
+            require("dap").continue()
+        end, desc = "debug continue", silent = true },
+        { "<leader>do", function()
+            require("dap").step_over()
+        end, desc = "debug step over", silent = true },
+        { "<leader>di", function()
+            require("dap").step_into()
+        end, desc = "debug step into", silent = true },
+        { "<leader>dO", function()
+            require("dap").step_out()
+        end, desc = "debug step out", silent = true },
+        { "<leader>db", function()
+            require("dap").toggle_breakpoint()
+        end, desc = "toggle breakpoint", silent = true },
+        { "<leader>dB", function()
+            require("dap").set_breakpoint(vim.fn.input "Breakpoint condition: ")
+        end, desc = "conditional breakpoint", silent = true },
+        { "<leader>dr", function()
+            require("dap").repl.toggle()
+        end, desc = "debug repl", silent = true },
+        { "<leader>dl", function()
+            require("dap").run_last()
+        end, desc = "debug run last", silent = true },
+        { "<leader>du", function()
+            require("dapui").toggle()
+        end, desc = "toggle debug ui", silent = true },
+        { "<leader>de", function()
+            require("dap").terminate()
+        end, desc = "debug terminate", silent = true },
+    },
+}
+
 config["nvim-treesitter"] = {
     "nvim-treesitter/nvim-treesitter",
     build = ":TSUpdate",
