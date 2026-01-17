@@ -183,6 +183,26 @@ Ice.plugins.mason = {
                     Ice.aaa = cfg.setup.on_attach
                     cfg.setup.on_attach(client, args.buf)
                 end
+
+                local opts = { buffer = args.buf, silent = true }
+
+                vim.keymap.set("n", "gd", vim.lsp.buf.definition, opts)
+                vim.keymap.set("n", "gD", vim.lsp.buf.declaration, opts)
+                vim.keymap.set("n", "gr", vim.lsp.buf.references, opts)
+                vim.keymap.set("n", "gi", vim.lsp.buf.implementation, opts)
+                vim.keymap.set("n", "gy", vim.lsp.buf.type_definition, opts)
+                vim.keymap.set("n", "K", vim.lsp.buf.hover, opts)
+                vim.keymap.set("n", "<C-k>", vim.lsp.buf.signature_help, opts)
+                vim.keymap.set("n", "<leader>rn", vim.lsp.buf.rename, opts)
+                vim.keymap.set({ "n", "v" }, "<leader>ca", vim.lsp.buf.code_action, opts)
+                vim.keymap.set("n", "<leader>ds", vim.lsp.buf.document_symbol, opts)
+                vim.keymap.set("n", "<leader>ws", vim.lsp.buf.workspace_symbol, opts)
+                vim.keymap.set("n", "<leader>f", function()
+                    vim.lsp.buf.format { async = true }
+                end, opts)
+
+                vim.keymap.set("n", "<leader>o", "<C-o>", { buffer = args.buf, desc = "go back" })
+                vim.keymap.set("n", "<leader>i", "<C-i>", { buffer = args.buf, desc = "go forward" })
             end,
         })
 

@@ -6,7 +6,7 @@ lsp = {
     ["bash-language-server"] = {
         formatter = "shfmt",
     },
-    clangd = { capabilities = { offsetEncoding = 'utf-8' }, cmd = { 'clangd' } },
+    clangd = { capabilities = { offsetEncoding = 'utf-8' }, cmd = { 'clangd' }, formatter = "clang_format", enabled = true },
     ["css-lsp"] = {
         formatter = "prettier",
         setup = {

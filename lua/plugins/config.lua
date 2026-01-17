@@ -886,6 +886,18 @@ config.neotree = {
     event = "User IceAfter colorscheme",
     keys = {
         { "<leader>e", "<cmd>Neotree toggle<cr>", desc = "NeoTree" },
+        { "<C-h>", function()
+            local manager = require("neo-tree.sources.manager")
+            local state = manager.get_state("filesystem")
+            if not state or not state.winid then
+                vim.cmd "Neotree reveal"
+            else
+                vim.cmd "wincmd h"
+            end
+        end, desc = "Focus NeoTree" },
+        { "<C-l>", function()
+            vim.cmd "wincmd l"
+        end, desc = "Focus code" },
     },
     opts = {
         sources = { "filesystem", "buffers", "git_status", "document_symbols" },
